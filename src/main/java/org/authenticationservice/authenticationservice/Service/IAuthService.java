@@ -5,5 +5,5 @@ import org.authenticationservice.authenticationservice.Exceptions.UserAlreadyExi
 
 public interface IAuthService {
     public UserDTO signup(String email, String password) throws UserAlreadyExistsException;
-    public UserDTO login(String email, String password);
+    public UserDTO signip(String email, String password);
 }
