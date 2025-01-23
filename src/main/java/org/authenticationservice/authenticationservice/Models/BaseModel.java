@@ -20,4 +20,15 @@ public class BaseModel {
     @Temporal(TemporalType.TIMESTAMP)
     private Date updatedAt;
     private Status status;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = new Date();
+        updatedAt = new Date();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = new Date();
+    }
 }
