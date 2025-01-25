@@ -3,7 +3,9 @@ package org.authenticationservice.authenticationservice.Controller;
 import org.authenticationservice.authenticationservice.DTOs.LoginRequest;
 import org.authenticationservice.authenticationservice.DTOs.SignUpRequest;
 import org.authenticationservice.authenticationservice.DTOs.UserDTO;
+import org.authenticationservice.authenticationservice.Exceptions.InvalidUserORPasswordException;
 import org.authenticationservice.authenticationservice.Exceptions.UserAlreadyExistsException;
+import org.authenticationservice.authenticationservice.Exceptions.UserNotFoundException;
 import org.authenticationservice.authenticationservice.Service.IAuthService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +32,19 @@ public class AuthController {
         }
 
         //return userDTO;
+    }
+
+    @PostMapping("/signin")
+    public ResponseEntity<UserDTO> signin(@RequestBody LoginRequest loginRequest) {
+        UserDTO userDTO = new UserDTO();
+        try {
+            userDTO = authService.signin(loginRequest.getEmail(), loginRequest.getPassword());
+            return new ResponseEntity<UserDTO>(userDTO, HttpStatus.ACCEPTED);
+        }catch(UserNotFoundException e) {
+            return new ResponseEntity<UserDTO>(HttpStatus.NOT_FOUND);
+        } catch (InvalidUserORPasswordException e) {
+            return new ResponseEntity<UserDTO>(HttpStatus.UNAUTHORIZED);
+        }
     }
 
     @PostMapping("/login")

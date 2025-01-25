@@ -37,6 +37,7 @@ public class AuthService implements IAuthService {
         return from(user);
     }
 
+    @Override
     public UserDTO signin(String email, String password) throws UserNotFoundException,InvalidUserORPasswordException {
         Optional<User> userOptional = authRepository.findByEmail(email);
         if(userOptional.isEmpty()) {
@@ -44,7 +45,7 @@ public class AuthService implements IAuthService {
         }
 
         User user = userOptional.get();
-        String hashedPassword = bCryptPasswordEncoder.encode(password);
+        //String hashedPassword = bCryptPasswordEncoder.encode(password);
         if(!bCryptPasswordEncoder.matches(password, user.getPassword())) {
             throw new InvalidUserORPasswordException("Invalid Login credentials...");
         }
@@ -56,10 +57,5 @@ public class AuthService implements IAuthService {
         UserDTO userDTO = new UserDTO();
         userDTO.setEmail(user.getEmail());
         return userDTO;
-    }
-
-    @Override
-    public UserDTO login(String email, String password) {
-        return null;
     }
 }

@@ -17,11 +17,10 @@ public class SecurityConfig  {
     }
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        HttpSecurity httpSecurity = http
-                .csrf().disable() // Disable CSRF for simplicity (not recommended for production)
-                .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/auth/signup").permitAll() // Allow access to /signup
-                        .anyRequest().authenticated() // All other endpoints require authentication
+        http.csrf().disable() // Disable CSRF for simplicity (not recommended for production)
+         .authorizeHttpRequests(authorize -> authorize
+//                        .requestMatchers("/auth/signup").permitAll() // Allow access to /signup
+                        .anyRequest().permitAll() // All other endpoints require authentication
                 );
 
         return http.build();
