@@ -7,8 +7,12 @@ import org.authenticationservice.authenticationservice.Exceptions.InvalidUserORP
 import org.authenticationservice.authenticationservice.Exceptions.UserAlreadyExistsException;
 import org.authenticationservice.authenticationservice.Exceptions.UserNotFoundException;
 import org.authenticationservice.authenticationservice.Service.IAuthService;
+import org.springframework.data.util.Pair;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -38,18 +42,16 @@ public class AuthController {
     public ResponseEntity<UserDTO> signin(@RequestBody LoginRequest loginRequest) {
         UserDTO userDTO = new UserDTO();
         try {
-            userDTO = authService.signin(loginRequest.getEmail(), loginRequest.getPassword());
-            return new ResponseEntity<UserDTO>(userDTO, HttpStatus.ACCEPTED);
+            Pair<UserDTO, String> response = authService.signin(loginRequest.getEmail(), loginRequest.getPassword());
+            MultiValueMap<String, String> headers = new LinkedMultiValueMap<>();
+            headers.add(HttpHeaders.SET_COOKIE, response.getSecond());
+            headers.add(HttpHeaders.SET_COOKIE, "extra value");
+            System.out.println(headers);
+            return new ResponseEntity<UserDTO>(userDTO, headers, HttpStatus.ACCEPTED);
         }catch(UserNotFoundException e) {
             return new ResponseEntity<UserDTO>(HttpStatus.NOT_FOUND);
         } catch (InvalidUserORPasswordException e) {
             return new ResponseEntity<UserDTO>(HttpStatus.UNAUTHORIZED);
         }
-    }
-
-    @PostMapping("/login")
-    public UserDTO login(@RequestBody LoginRequest loginRequest) {
-        UserDTO userDTO = new UserDTO();
-        return userDTO;
     }
 }
