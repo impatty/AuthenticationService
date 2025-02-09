@@ -1,4 +1,9 @@
 package org.authenticationservice.authenticationservice.Exceptions;
 
-public class UserSessionNotFound {
+import org.springframework.web.bind.annotation.ExceptionHandler;
+
+public class UserSessionNotFound extends Exception {
+    public UserSessionNotFound(String message) {
+        super(message);
+    }
 }

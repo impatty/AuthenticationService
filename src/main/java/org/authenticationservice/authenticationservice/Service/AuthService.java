@@ -1,14 +1,20 @@
 package org.authenticationservice.authenticationservice.Service;
 
 import com.nimbusds.jwt.JWT;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.MacAlgorithm;
 import org.authenticationservice.authenticationservice.DTOs.UserDTO;
 import org.authenticationservice.authenticationservice.Exceptions.InvalidUserORPasswordException;
 import org.authenticationservice.authenticationservice.Exceptions.UserAlreadyExistsException;
 import org.authenticationservice.authenticationservice.Exceptions.UserNotFoundException;
+import org.authenticationservice.authenticationservice.Exceptions.UserSessionNotFound;
+import org.authenticationservice.authenticationservice.Models.Enum.Status;
 import org.authenticationservice.authenticationservice.Models.User;
+import org.authenticationservice.authenticationservice.Models.UserSession;
 import org.authenticationservice.authenticationservice.Repository.AuthRepository;
+import org.authenticationservice.authenticationservice.Repository.UserSessionRepository;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.util.Pair;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -17,18 +23,25 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.logging.Logger;
 
 @Service
 @Primary
 public class AuthService implements IAuthService {
     private final AuthRepository authRepository;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
-    public AuthService(AuthRepository authRepository, BCryptPasswordEncoder bCryptPasswordEncoder) {
+    private final UserSessionRepository userSessionRepository;
+    private final SecretKey secretKey;
+    public AuthService(AuthRepository authRepository, BCryptPasswordEncoder bCryptPasswordEncoder, UserSessionRepository userSessionRepository,
+                       SecretKey secretKey) {
         this.authRepository = authRepository;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
+        this.userSessionRepository = userSessionRepository;
+        this.secretKey = secretKey;
     }
     @Override
     public UserDTO signup(String email, String password) throws UserAlreadyExistsException {
@@ -59,31 +72,52 @@ public class AuthService implements IAuthService {
         }
         UserDTO userDTO = from(user);
         //Generating JWT
-        String message = """
-                {
-                   "email": "anurag@gmail.com",
-                   "roles": [
-                      "instructor",
-                      "buddy"
-                   ],
-                   "expirationDate": "2ndApril2025"
-                }""";
-        Map<String, String> payload = new HashMap<>();
+        Map<String, Object> payload = new HashMap<>();
         payload.put("email", user.getEmail());
-        payload.put("createdAt", String.valueOf(System.currentTimeMillis()));
-        payload.put("expiresOn", String.valueOf(System.currentTimeMillis() + (1000 * 60 * 60 * 24)));
-        MacAlgorithm algorithm = Jwts.SIG.HS256;
-        SecretKey secretKey = algorithm.key().build();
+        payload.put("createdAt", System.currentTimeMillis());
+        payload.put("expiresOn", System.currentTimeMillis() + (1000 * 20));
         String token = Jwts.builder().claims(payload).signWith(secretKey).compact();
-
+        // Persist the session data in the DB
+        // create usesession and persist in DB
+        UserSession userSession = new UserSession();
+        userSession.setToken(token);
+        userSession.setUser(user);
+        userSession.setStatus(Status.ACTIVE);
+        userSessionRepository.save(userSession);
         return Pair.of(userDTO, token);
     }
 
+    // Validate Token as part of Resource server action
+    public Boolean validateToken(long userId, String token) throws UserSessionNotFound {
+        UserDTO userDTO = new UserDTO();
+        Optional<UserSession> userSessionOptional = userSessionRepository.findUserSessionByUserIdAndToken(userId, token);
+        if(userSessionOptional.isEmpty()) {
+            throw new UserSessionNotFound("No sessions exists for the user");
+        }
+        UserSession userSession = userSessionOptional.get();
+        return isValidToken(token, userSession);
+//        return userDTO;
+    }
 
     public UserDTO from(User user) {
         //HttpHeaders.
         UserDTO userDTO = new UserDTO();
         userDTO.setEmail(user.getEmail());
         return userDTO;
+    }
+
+    public boolean isValidToken(String token, UserSession userSession) {
+        JwtParser jwtParser = Jwts.parser().verifyWith(secretKey).build();
+        Claims claims = jwtParser.parseSignedClaims(token).getPayload();
+        Long expiresOn = (Long) claims.get("expiresOn");
+        long now = System.currentTimeMillis();
+        if(userSession.getStatus() == Status.INACTIVE) return false;
+        if(now > expiresOn) {
+            userSession.setStatus(Status.INACTIVE);
+            userSessionRepository.save(userSession);
+            return false;
+        }
+        return true;
+
     }
 }
